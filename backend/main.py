@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from db import lifespan
 from routes.tasks import router as tasks_router
 from routes.chat import router as chat_router
+from routes.jobs import router as jobs_router
 
 load_dotenv()
 
@@ -16,7 +17,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -27,6 +27,7 @@ def create_app() -> FastAPI:
 
     app.include_router(tasks_router, prefix="/api")
     app.include_router(chat_router, prefix="/api")
+    app.include_router(jobs_router)
 
     @app.get("/health")
     async def health_check() -> dict:
