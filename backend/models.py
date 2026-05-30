@@ -1,0 +1,133 @@
+# [Task]: T005-T007 [From]: specs/phase2-web/database-schema/spec.md §Key Entities
+# SQLModel table definitions for User and Task entities.
+# Spec: FR-002 to FR-014 | data-model.md
+# Note: Input validation is enforced in schemas.py (TaskCreate / TaskUpdate).
+#       SQLModel table models with table=True bypass Pydantic validators on construction.
+
+import uuid
+from datetime import date, datetime
+from typing import Optional
+
+from sqlalchemy import Column, Date, DateTime, Text, func
+from sqlmodel import Field, SQLModel
+
+
+class User(SQLModel, table=True):
+    """
+    Registered user account.
+    Managed by Better Auth (Phase III) — schema defined here for FK relationship.
+    FR-012: unique id, email, name, created_at.
+    FR-013: email is UNIQUE at DB level.
+    """
+
+    __tablename__ = "user"
+
+    id: str = Field(primary_key=True)
+    email: str = Field(unique=True, nullable=False, index=True)
+    name: str = Field(nullable=False)
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+        ),
+    )
+
+
+class Task(SQLModel, table=True):
+    """
+    A single to-do item owned by a User.
+    FR-002: auto-generated integer PK.
+    FR-003: every task linked to exactly one user via user_id FK.
+    FR-004: title (req, max 200), description (opt, max 1000), completed (bool, default false).
+    FR-005: created_at auto-set on creation.
+    FR-006: updated_at auto-refreshed on update.
+    FR-014: FK constraint prevents orphaned tasks; CASCADE delete on user removal.
+    """
+
+    __tablename__ = "task"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: str = Field(
+        nullable=False,
+        index=True,
+    )
+    title: str = Field(max_length=200, nullable=False)
+    description: Optional[str] = Field(default=None, max_length=1000)
+    completed: bool = Field(default=False, nullable=False, index=True)
+    # Phase 5: Advanced feature fields
+    priority: Optional[str] = Field(default=None, max_length=6, index=True)
+    category: Optional[str] = Field(default=None, max_length=50)
+    tags: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    due_date: Optional[date] = Field(
+        default=None, sa_column=Column(Date, nullable=True)
+    )
+    due_time: Optional[str] = Field(default=None, max_length=5)
+    recurring: Optional[str] = Field(default=None, max_length=7)
+    reminder: Optional[bool] = Field(default=False)
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+        ),
+    )
+    updated_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            onupdate=func.now(),
+            nullable=False,
+        ),
+    )
+
+
+# --- Phase 3: Chat models ---
+
+
+class Conversation(SQLModel, table=True):
+    """A chat conversation owned by a user."""
+
+    __tablename__ = "conversation"
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex, primary_key=True)
+    user_id: str = Field(nullable=False, index=True)
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+        ),
+    )
+    updated_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            onupdate=func.now(),
+            nullable=False,
+        ),
+    )
+
+
+class Message(SQLModel, table=True):
+    """A single message in a conversation."""
+
+    __tablename__ = "message"
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex, primary_key=True)
+    conversation_id: str = Field(nullable=False, index=True)
+    role: str = Field(nullable=False)  # "user" or "assistant"
+    content: str = Field(sa_column=Column(Text, nullable=False))
+    created_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(
+            DateTime(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+        ),
+    )

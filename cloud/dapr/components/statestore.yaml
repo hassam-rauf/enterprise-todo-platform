@@ -1,0 +1,17 @@
+# [Task]: T004 [From]: specs/phase5-cloud/cloud-deployment/spec.md §FR-005
+# Dapr State Store — Bitnami Redis (standalone, no auth) in-cluster service.
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: statestore
+  namespace: todo-platform
+spec:
+  type: state.redis
+  version: v1
+  metadata:
+    - name: redisHost
+      value: "todo-platform-redis-master:6379"
+    - name: enableTLS
+      value: "false"
+    - name: keyPrefix
+      value: "appid"

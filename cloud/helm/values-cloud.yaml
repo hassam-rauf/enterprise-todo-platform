@@ -1,0 +1,97 @@
+# [Task]: T007/T009 [From]: specs/phase5-cloud/cloud-deployment/spec.md §FR-001,FR-004
+# Cloud-specific Helm value overrides for OKE deployment.
+# Replace GITHUB_OWNER with your actual GitHub username/org (e.g. shehrozhanif).
+# Image tags are overridden at deploy time via --set backend.image.tag=$GITHUB_SHA.
+
+backend:
+  replicaCount: 1
+  dapr:
+    enabled: false
+  image:
+    repository: ghcr.io/shehrozhanif/todo-backend
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+  env:
+    ALLOWED_ORIGINS: "http://todo.136.116.62.248.nip.io,https://todo.136.116.62.248.nip.io"
+    MCP_SERVER_URL: "http://todo-platform-mcp-server:8001/sse"
+    KAFKA_BOOTSTRAP_SERVERS: ""
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 512Mi
+  probes:
+    liveness:
+      path: /health
+      initialDelaySeconds: 15
+      periodSeconds: 30
+    readiness:
+      path: /health
+      initialDelaySeconds: 10
+      periodSeconds: 10
+
+frontend:
+  replicaCount: 1
+  dapr:
+    enabled: false
+  image:
+    repository: ghcr.io/shehrozhanif/todo-frontend
+    tag: "latest"
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 3000
+    targetPort: 3000
+  env:
+    NEXT_PUBLIC_APP_URL: "https://todo.136.116.62.248.nip.io"
+    BETTER_AUTH_URL: "https://todo.136.116.62.248.nip.io"
+    NEXT_PUBLIC_API_URL: "https://todo.136.116.62.248.nip.io"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+mcp-server:
+  replicaCount: 0
+  image:
+    repository: ghcr.io/shehrozhanif/todo-mcp
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# Bitnami Kafka — disabled for initial deploy (enable later)
+kafka:
+  enabled: false
+
+# Bitnami Redis — disabled for initial deploy (enable later)
+redis:
+  enabled: false
+  architecture: standalone
+  auth:
+    enabled: false
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
