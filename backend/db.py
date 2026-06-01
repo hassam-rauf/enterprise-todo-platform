@@ -36,15 +36,26 @@ def _build_engine(database_url: str) -> AsyncEngine:
     is_sqlite = database_url.startswith("sqlite")
 
     if is_sqlite:
+        # Add aiosqlite driver for async sqlite
+        if "sqlite+aiosqlite" not in database_url:
+            database_url = database_url.replace("sqlite://", "sqlite+aiosqlite://")
         connect_args: dict = {"check_same_thread": False}
         kwargs: dict = {"echo": False, "connect_args": connect_args}
     else:
+        # Fix URL: ensure asyncpg driver is used
+        if database_url.startswith("postgresql://"):
+            database_url = database_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        elif database_url.startswith("postgres://"):
+            database_url = database_url.replace("postgres://", "postgresql+asyncpg://", 1)
+
+        # Remove unsupported query params for asyncpg
         from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
         parsed = urlparse(database_url)
         params = parse_qs(parsed.query, keep_blank_values=True)
         params.pop("sslmode", None)
         params.pop("channel_binding", None)
         clean_url = urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
+        database_url = clean_url
 
         connect_args = {"ssl": "require"}
         kwargs = {
@@ -55,7 +66,6 @@ def _build_engine(database_url: str) -> AsyncEngine:
             "max_overflow": 10,
             "pool_recycle": 300,
         }
-        database_url = clean_url
 
     return create_async_engine(database_url, **kwargs)
 
@@ -82,7 +92,8 @@ async def lifespan(app: FastAPI):
         await conn.run_sync(Message.__table__.create, checkfirst=True)
 
     # Add new columns if needed (PostgreSQL only)
-    if "sqlite" not in str(engine.url):
+    db_url = os.getenv("DATABASE_URL", "")
+    if "sqlite" not in db_url:
         await _migrate_task_columns(engine)
 
     yield
